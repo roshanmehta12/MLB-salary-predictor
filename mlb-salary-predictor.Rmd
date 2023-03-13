@@ -10,8 +10,8 @@ output:
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 library(ggplot2)
-library("dplyr")
-library(corrplot) # for a correlation plot
+library(dplyr)
+library(corrplot) # for a correlation plot 
 ```
 
 # Introduction
@@ -342,7 +342,6 @@ In this project, we explored the Hitters dataset in R to analyze the performance
 In conclusion, we found that a linear regression model could be used to predict the salaries of Major League Baseball players based on their performance statistics. The most important predictors of salary were "Hits", "Runs", "Walks", and "Years". Our model had moderate predictive power, and there is potential for further improvement through the use of more sophisticated modeling techniques and feature engineering.
 
 Our results indicate that a ridge regression model with all variables is the most accurate model for predicting player salaries, with a mean squared error of XX. This model can be used by MLB teams and analysts to estimate the salaries of prospective players based on their performance statistics.
-
 
 # References
 * James, G., Witten, D., Hastie, T., & Tibshirani, R. (2017). An introduction to statistical learning: with applications in R. Springer.
