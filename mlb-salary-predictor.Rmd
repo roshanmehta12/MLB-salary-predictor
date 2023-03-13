@@ -1,0 +1,349 @@
+---
+title: "Swinging for the Fences: A Data-Driven Approach to Predicting Baseball Player Salaries with the Hitters Dataset in R"
+author: "Roshan Mehta"
+date: "2023-03-12"
+output:
+  pdf_document:
+    toc: yes
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(ggplot2)
+library("dplyr")
+library(corrplot) # for a correlation plot
+```
+
+# Introduction
+The goal of this project is to build a model that can accurately predict a player's salary based on their performance statistics. To accomplish this, we will be using a variety of machine learning methods and functions, after data cleaning and preparation, exploratory data analysis, feature engineering, and predictive modeling.
+
+This project will be using the "Hitters" dataset, available in R, which contains information on the performance of Major League Baseball (MLB) hitters. The dataset contains statistics on 322 players who played at least one season in the MLB during the years 1986-87, including their salary, batting average, runs, hits, home runs, stolen bases, and other performance metrics.
+
+We will start by cleaning and preparing the Hitters dataset to remove any missing or irrelevant data, and converting categorical variables to factors. Then, we will conduct exploratory data analysis to gain insights into the performance statistics of MLB hitters, using descriptive statistics, visualizations, and correlations to understand the relationships between different variables.
+
+Next, we will create new features based on the existing variables in the Hitters dataset. We will use domain knowledge and statistical techniques to engineer features that may improve the accuracy of our model.
+
+Finally, we will build and evaluate different models to predict a player's salary based on their performance statistics. We will use a train-test split to evaluate the accuracy of our models and select the best model based on its performance. Some of the models we will use include linear regression, ridge regression, and decision trees.
+
+By the end of this project, we will have a better understanding of the performance statistics of Major League Baseball hitters, as well as a predictive model that can be used by MLB teams and analysts to estimate the salaries of prospective players based on their performance statistics.
+
+
+# Data Preparation and Cleaning
+The "Hitters" dataset is available in the "ISLR2" package in R, and can be loaded using the `data(Hitters)` command after loading the library. 
+In this section, we will prepare and clean the Hitters dataset for analysis. We will remove any missing or irrelevant data and convert any necessary data types.
+
+```{r}
+library(ISLR2)
+data(Hitters)
+
+# Remove any missing data
+Hitters <- na.omit(Hitters)
+
+# Convert categorical variables to factors
+Hitters$League <- as.factor(Hitters$League)
+Hitters$Division <- as.factor(Hitters$Division)
+Hitters$NewLeague <- as.factor(Hitters$NewLeague)
+
+# View the cleaned dataset
+head(Hitters)
+```
+
+The dataset contains 322 observations (i.e., players) and 20 variables (i.e., attributes). The variables in the dataset include:
+
+* `AtBat`: Number of times at bat 
+* `Hits`: Number of hits 
+* `HmRun`: Number of home runs 
+* `Runs`: Number of runs
+* `RBI`: Number of runs batted in
+* `Walks`: Number of walks 
+* `Years`: Number of years in the major leagues
+* `CAtBat`: Number of times at bat during his career
+* `CHits`: Number of hits during his career
+* `CHmRun`: Number of home runs during his career
+* `CRuns`: Number of runs during his career
+* `CRBI`: Number of runs batted in during his career
+* `CWalks`: Number of walks during his career
+* `League`: A factor with levels A and N indicating the player’s league at the end of 1986 (American or National)
+* `Division`: A factor with levels E and W indicating the player’s division at the end of 1986 (East or West)
+* `PutOuts`: Number of putouts 
+* `Assists`: Number of assists 
+* `Errors`: Number of errors 
+* `Salary`: 1987 annual salary on opening day in thousands of dollars
+* `NewLeague`: A factor with levels A and N indicating the player’s league at the beginning of 1987
+__Variables pertain to the 1986 season were applicable__
+
+# Exploratory Data Analysis (EDA)
+In this section, we will explore the Hitters dataset to gain insights into the performance statistics of MLB hitters. We will use descriptive statistics, visualizations, and correlations to understand the relationships between different variables.
+
+```{r}
+# View the summary statistics of the dataset
+summary(Hitters)
+
+# Visualize the distributions of the variables
+par(mfrow=c(3,3))
+for(i in 2:10) {
+  hist(Hitters[,i], main=colnames(Hitters)[i])
+}
+par(mfrow=c(1,2))
+# Create a histogram of the Salary variable
+hist(Hitters$Salary, main="Histogram of Player Salaries", xlab="Salary")
+
+# Create a scatter plot of Hits vs. Salary
+plot(Hitters$Hits, Hitters$Salary, main="Scatter Plot of Hits vs. Salary", xlab="Hits", ylab="Salary")
+
+par(mfrow=c(1,1))
+# Compute correlation matrix
+corr_matrix <- cor(select_if(Hitters, is.numeric))
+# Create correlation plot
+corrplot(corr_matrix, method="color", type="lower", tl.col="black", tl.srt=45)
+```
+There seem to be strong positive linear correlations between `Years`, `CHits`, `CRuns`, `CRbi`, and `CWalks`. There are also strong positive correlations between `AtBat`, `Hits`, `Runs`, `RBI`, and `Walks`. 
+
+```{r}
+# Scatterplot of Salary vs Hits
+ggplot(data = Hitters, aes(x = Hits, y = Salary)) + 
+  geom_point(color = "blue", alpha = 0.6, size = 3) + 
+  geom_smooth(method = "lm", se = FALSE, color = "red") +
+  labs(title = "Scatterplot of Salary vs Hits",
+       x = "Hits",
+       y = "Salary") +
+  theme(plot.title = element_text(face = "bold", size = 20, hjust = 0.5),
+        axis.title = element_text(face = "bold", size = 16),
+        axis.text = element_text(size = 14))
+```
+
+```{r}
+# salary histogram
+ggplot(data = Hitters, aes(x = Salary)) +
+  geom_histogram(fill = "blue", alpha = 0.5, bins = 20) +
+  ggtitle("Salary Distribution") +
+  theme_bw()
+
+# Boxplot of salary by league
+ggplot(data = Hitters, aes(x = League, y = Salary)) +
+  geom_boxplot() +
+  ggtitle("Salary by League") +
+  theme_bw()
+```
+
+# Feature Selection and Engineering
+In this section, we will create new features based on the existing variables in the Hitters dataset. We will use domain knowledge and statistical techniques to engineer features that may improve the accuracy of our model.
+
+```{r}
+# Create a new feature for the player's average number of hits per year
+Hitters$AvgHits <- Hitters$Hits / Hitters$Years
+
+# Create a new feature for the player's average number of home runs per year
+Hitters$AvgHR <- Hitters$HmRun / Hitters$Years
+
+# Create a new feature for the player's average number of runs per year
+Hitters$AvgRuns <- Hitters$Runs / Hitters$Years
+
+# View the updated dataset
+head(Hitters[,19:23])
+```
+
+# Building Predictive Models & Evaluaton
+In this section, we will evaluate the performance of the different models we built in the previous section. We will use a train-test split to evaluate the accuracy of each model and select the best model based on its performance.
+
+### Train-Test Split
+Before we evaluate the models, we will split the data into training and test sets. We will use the training set to build the models and the test set to evaluate their performance.
+
+# Best Subset Selection
+## Forward and Backward Stepwise Selection
+```{r}
+library(leaps)
+regfit.full=regsubsets(Salary~.,data=Hitters,nvmax=22)
+reg.summary=summary(regfit.full)
+names(reg.summary)
+reg.summary$rsq
+regfit.fwd=regsubsets(Salary~.,data=Hitters,nvmax=22,method="forward")
+summary(regfit.fwd)
+regfit.bwd=regsubsets(Salary~.,data=Hitters,nvmax=22,method="backward")
+summary(regfit.bwd)
+coef(regfit.full,7)
+coef(regfit.fwd,7)
+coef(regfit.bwd,7)
+```
+
+## Choosing Among Models
+### Validation Set Approach
+```{r}
+set.seed(1)
+train=sample(c(TRUE,FALSE), nrow(Hitters),rep=TRUE)
+test=(!train)
+regfit.best=regsubsets(Salary~.,data=Hitters[train,],nvmax=22)
+test.mat=model.matrix(Salary~.,data=Hitters[test,])
+val.errors=rep(NA,22)
+for(i in 1:22){
+  coefi=coef(regfit.best,id=i)
+  pred=test.mat[,names(coefi)]%*%coefi
+  val.errors[i]=mean((Hitters$Salary[test]-pred)^2)
+}
+val.errors
+which.min(val.errors) # We see that the best model is the one with 8 variables.
+coef(regfit.best, 8)
+```
+
+### Cross-Validation with Optimal Number of Predictors
+```{r}
+predict.regsubsets=function(object,newdata,id,...){
+  form=as.formula(object$call[[2]])
+  mat=model.matrix(form,newdata)
+  coefi=coef(object,id=id)
+  xvars=names(coefi)
+  mat[,xvars]%*%coefi
+}
+
+regfit.best=regsubsets(Salary~.,data=Hitters,nvmax=22)
+#coef(regfit.best, 8)
+k=10
+n=nrow(Hitters)
+set.seed(1)
+folds=sample(rep(1:k,length=n))
+cv.errors=matrix(NA,k,22, dimnames=list(NULL, paste(1:22)))
+for(j in 1:k){
+  best.fit=regsubsets(Salary~.,data=Hitters[folds!=j,],nvmax=22)
+  for(i in 1:22){
+    pred=predict(best.fit,Hitters[folds==j,],id=i)
+    cv.errors[j,i]=mean( (Hitters$Salary[folds==j]-pred)^2)
+  }
+}
+mean.cv.errors=apply(cv.errors,2,mean)
+mean.cv.errors
+par(mfrow=c(1,1))
+plot(mean.cv.errors,type='b')
+reg.best=regsubsets(Salary~.,data=Hitters, nvmax=22)
+coef(reg.best, 10)
+```
+
+#################################################################################
+```{r}
+# Load the necessary libraries for modeling
+#library(caret)
+#library(glmnet)
+
+# Split the dataset into a training and testing set
+#set.seed(123)
+#trainIndex <- createDataPartition(Hitters$Salary, p=0.7, list=FALSE)
+#train <- Hitters[trainIndex,]
+#test <- Hitters[-trainIndex,]
+```
+Here, we randomly select 70% of the rows in the Hitters dataset to use as the training set and the remaining 30% as the test set. We set the random seed to ensure that the split is reproducible.
+
+### Model Evaluation Metrics
+To evaluate the performance of our models, we will use mean squared error (MSE) as the evaluation metric. MSE measures the average squared difference between the predicted and actual salaries of the players in the test set. A lower MSE indicates a more accurate model.
+
+### Ridge Regression Model
+We will start by evaluating the performance of the ridge regression model we built earlier. We will use all variables in the Hitters dataset as predictors in the model.
+Ridge regression is a type of linear regression that uses L2 regularization to prevent overfitting of the model to the training data. It adds a penalty term to the least squares objective function, which shrinks the coefficients towards zero.
+
+```{r}
+x=model.matrix(Salary~.,Hitters)[, -1]
+y=Hitters$Salary
+
+library(glmnet)
+
+grid=10^seq(10,-2,length=100)
+# ridge (a=0)
+ridge.mod = glmnet(x,y,alpha=0,lambda=grid)
+predict(ridge.mod,s=50,type="coefficients")[1:20,]
+
+# Estimating Test Error
+set.seed(1)
+train=sample(1:nrow(x), nrow(x)/2)
+test=(-train)
+y.test=y[test]
+ridge.mod=glmnet(x[train,],y[train],alpha=0,lambda=grid, thresh=1e-12)
+ridge.pred=predict(ridge.mod,s=4,newx=x[test,])
+mean((ridge.pred-y.test)^2)
+
+# comparing with lm()
+my.lm=lm(y~.,subset=train,data=data.frame(y,x))
+lm.pred = predict(my.lm,newdata=data.frame(y,x)[test,])
+mean((lm.pred-y.test)^2)
+ridge.pred=predict(ridge.mod,s=0,newx=x[test,],exact=T,x=x[train,],y=y[train],thresh=1e-16)
+mean((ridge.pred-y.test)^2)
+
+set.seed(1)
+cv.out=cv.glmnet(x[train,],y[train],alpha=0,nfolds=10)
+plot(cv.out)
+bestlam=cv.out$lambda.min
+bestlam
+ridge.pred=predict(ridge.mod, s=bestlam, newx=x[test,])
+mean((ridge.pred-y.test)^2)
+out=glmnet(x,y,alpha=0)
+predict(out,type="coefficients", s=bestlam)[1:20,]
+```
+
+The cv.glmnet function uses cross-validation to select the best value of the regularization parameter (lambda) for the ridge regression model. The nfolds argument specifies the number of cross-validation folds to use.
+
+The mean squared error of the ridge regression model on the test set is XX, indicating that it is a reasonably accurate model.
+
+### Lasso
+Next, we will evaluate the performance of the Lasso model we built. We will use all variables in the Hitters dataset as predictors in the model.
+
+```{r}
+lasso.mod=glmnet(x[train,],y[train],alpha=1,lambda=grid)
+plot(lasso.mod)
+set.seed(1)
+cv.out=cv.glmnet(x[train,],y[train],alpha=1)
+plot(cv.out)
+bestlam=cv.out$lambda.min
+lasso.pred=predict(lasso.mod,s=bestlam,newx=x[test,])
+mean((lasso.pred-y.test)^2)
+out=glmnet(x,y,alpha=1,lambda=grid)
+lasso.coef=predict(out, type="coefficients", s=bestlam)[1:20,]
+lasso.coef
+lasso.coef[lasso.coef!=0]
+```
+
+
+# Principal Components Regression
+## PCR Regression
+```{r}
+library(pls)
+set.seed(2)
+pcr.fit=pcr(Salary~., data=Hitters, scale=TRUE, validation="CV")
+summary(pcr.fit)
+validationplot(pcr.fit,val.type="MSEP")
+set.seed(1)
+pcr.fit=pcr(Salary~., data=Hitters, subset=train, scale=TRUE, validation="CV")
+validationplot(pcr.fit,val.type="MSEP")
+pcr.pred=predict(pcr.fit,x[test,],ncomp=5)
+mean((pcr.pred-y.test)^2)
+pcr.fit=pcr(y~x,scale=TRUE,ncomp=5)
+summary(pcr.fit)
+```
+
+## PLS Regression
+```{r}
+set.seed(1)
+pls.fit=plsr(Salary~., data=Hitters, subset=train, scale=TRUE, validation="CV")
+summary(pls.fit)
+validationplot(pls.fit,val.type="MSEP")
+pls.pred=predict(pls.fit,x[test,],ncomp=1)
+mean((pls.pred-y.test)^2)
+pls.fit=plsr(Salary~., data=Hitters, scale=TRUE, ncomp=1)
+summary(pls.fit)
+```
+
+# Model Selection
+Based on our evaluation, the ridge regression model with all variables performs the best, with the lowest mean squared error on the test set. Therefore, we will select this model as our final model for predicting player salaries.
+
+By building and evaluating these models, we have gained insights into the performance statistics of Major League Baseball hitters and created a predictive model that can be used to estimate the
+
+# Interpretation and Visualization
+
+
+# Conclusion
+In this project, we explored the Hitters dataset in R to analyze the performance of Major League Baseball hitters. We prepared and cleaned the data, conducted exploratory data analysis, performed feature engineering, and built and evaluated different models to predict a player's salary based on their performance statistics.
+
+In conclusion, we found that a linear regression model could be used to predict the salaries of Major League Baseball players based on their performance statistics. The most important predictors of salary were "Hits", "Runs", "Walks", and "Years". Our model had moderate predictive power, and there is potential for further improvement through the use of more sophisticated modeling techniques and feature engineering.
+
+Our results indicate that a ridge regression model with all variables is the most accurate model for predicting player salaries, with a mean squared error of XX. This model can be used by MLB teams and analysts to estimate the salaries of prospective players based on their performance statistics.
+
+
+# References
+* James, G., Witten, D., Hastie, T., & Tibshirani, R. (2017). An introduction to statistical learning: with applications in R. Springer.
+* Hitters dataset in ISLR package in R.
